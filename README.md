@@ -1,5 +1,5 @@
 # check-yoself
-A homemead testing framework
+A homemade testing framework
 
 Features:
 - indent appropriately
