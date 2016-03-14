@@ -1,0 +1,19 @@
+{
+  "name": "check-yoself",
+  "version": "1.0.0",
+  "description": "A homemade testing framework",
+  "main": "lib/check.coffee",
+  "scripts": {
+    "test": "./bin/check ./spec/check-check.coffee"
+  },
+  "keywords": [],
+  "author": "Katrin Uychaco",
+  "license": "ISC",
+  "dependencies": {
+    "coffee-script": "^1.10.0",
+    "colors": "^1.1.2"
+  },
+  "bin": {
+    "check": "./bin/check"
+  }
+}
