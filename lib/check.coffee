@@ -3,6 +3,8 @@ require "colors"
 focusLevel = 0
 evaluating = false
 
+failures = []
+
 root =
   beforeEaches: []
   afterEaches: []
@@ -114,6 +116,7 @@ evaluate = ->
       else
         console.log indentation.join('') + itNode.description.yellow
     catch error
+      failures.push({error, description: itNode.description, parent: itNode.parent})
       console.log indentation.join('') + itNode.description.red
       console.log indentation.join('') + error.message.bold.gray
 
@@ -135,6 +138,17 @@ evaluate = ->
     inactive = previousInactiveStatus
 
   root.describes.forEach((describe) -> evaluateDescribe(describe))
+  logErrors()
+
+logErrors = ->
+  console.log()
+  failures.forEach((failure) ->
+    stack = failure.error.stack
+    stack = stack.split('\n').map((line) -> line = '  '+line).join('\n')
+    console.log failure.description.red
+    console.log failure.error.message
+    console.log stack
+  )
 
 module.exports.evaluate = evaluate
 
