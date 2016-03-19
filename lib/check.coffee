@@ -2,6 +2,8 @@ require "colors"
 
 focusLevel = 0
 evaluating = false
+indentation = []
+inactive = null
 
 failures = []
 
@@ -61,84 +63,46 @@ xit = (description, callback) ->
   pointer.its.push({description, callback, parent: pointer, active: false})
 
 
-fit = (description, callback) ->
-  focusLevel = Math.max(focusLevel, 1)
-  it(description, callback, 1)
+generate = (fn, level) ->
+  (description, callback) ->
+    focusLevel = Math.max(focusLevel, level)
+    fn(description, callback, level)
 
-ffit = (description, callback) ->
-  focusLevel = Math.max(focusLevel, 2)
-  it(description, callback, 2)
+fit = generate(it, 1)
+ffit = generate(it, 2)
+fffit = generate(it, 3)
+fdescribe = generate(describe, 1)
+ffdescribe = generate(describe, 2)
+fffdescribe = generate(describe, 3)
 
-fffit = (description, callback) ->
-  focusLevel = Math.max(focusLevel, 3)
-  it(description, callback, 3)
 
-fdescribe = (description, callback) ->
-  focusLevel = Math.max(focusLevel, 1)
-  describe(description, callback, 1)
+logSuccess = (indentation, itNode) ->
+  console.log indentation.join('') + itNode.description.green
 
-ffdescribe = (description, callback) ->
-  focusLevel = Math.max(focusLevel, 2)
-  describe(description, callback, 2)
+logPending = (indentation, node) ->
+  if node.describes?
+    console.log indentation.join('') + node.description.bold.yellow
+  else
+    console.log indentation.join('') + node.description.yellow
 
-fffdescribe = (description, callback) ->
-  focusLevel = Math.max(focusLevel, 3)
-  describe(description, callback, 3)
+logFailure = (indentation, itNode, error) ->
+  failures.push({error, description: itNode.description, parent: itNode.parent})
+  console.log indentation.join('') + itNode.description.red
+  console.log indentation.join('') + error.message.bold.gray
 
-evaluate = ->
-  indentation = []
-  inactive = null
-  complete = false
-  evaluating = true
+evaluateBeforeEaches = (describe) ->
+  evaluateBeforeEaches(describe.parent) if describe.parent
+  describe.beforeEaches.forEach((beforeEach) -> beforeEach())
 
-  evaluateIt = (itNode) ->
-    itNode.active = false unless itNode.focusLevel is focusLevel
-    evaluateBeforeEaches = (describe) ->
-      evaluateBeforeEaches(describe.parent) if describe.parent
-      describe.beforeEaches.forEach((beforeEach) -> beforeEach())
+evaluateAfterEaches = (describe) ->
+  evaluateAfterEaches(describe.parent) if describe.parent
+  describe.afterEaches.forEach((afterEach) -> afterEach())
 
-    evaluateAfterEaches = (describe) ->
-      evaluateAfterEaches(describe.parent) if describe.parent
-      describe.afterEaches.forEach((afterEach) -> afterEach())
-
-    done = (error, success) ->
-      if (error)
-        return throw new Error(error.message)
-      complete = true
-      success?()
-
-    try
-      if itNode.active and not inactive
-        evaluateBeforeEaches(itNode.parent)
-        itNode.callback(done)
-        evaluateAfterEaches(itNode.parent)
-        console.log indentation.join('') + itNode.description.green
-      else
-        console.log indentation.join('') + itNode.description.yellow
-    catch error
-      failures.push({error, description: itNode.description, parent: itNode.parent})
-      console.log indentation.join('') + itNode.description.red
-      console.log indentation.join('') + error.message.bold.gray
-
-  evaluateDescribe = (describeNode) ->
-    previousInactiveStatus = inactive
-    if describeNode.active and not inactive
-      console.log indentation.join('') + describeNode.description.bold
-    else
-      inactive = true
-      console.log indentation.join('') + describeNode.description.yellow
-    indentation.push('  ')
-    if describeNode.focusLevel is focusLevel
-      describeNode.its.map((it) -> it.focusLevel = focusLevel)
-      describeNode.describes.map((describe) -> describe.focusLevel = focusLevel)
-
-    describeNode.its.forEach((it) -> evaluateIt(it))
-    describeNode.describes.forEach((describe) -> evaluateDescribe(describe))
-    indentation.pop()
-    inactive = previousInactiveStatus
-
-  root.describes.forEach((describe) -> evaluateDescribe(describe))
-  logErrors()
+tryAfterEach = (indentation, itNode) ->
+  try
+    evaluateAfterEaches(itNode.parent)
+  catch error
+    logFailure(indentation, itNode, error)
 
 logErrors = ->
   console.log()
@@ -149,6 +113,66 @@ logErrors = ->
     console.log failure.error.message
     console.log stack
   )
+
+recurse = (fn, array, index, callback) ->
+  value = array[index]
+  if value
+    fn(value, -> recurse(fn, array, ++index, callback))
+  else
+    callback()
+
+evaluateDescribe = (describeNode, next) ->
+  previousInactiveStatus = inactive
+  if describeNode.active and not inactive
+    console.log indentation.join('') + describeNode.description.bold
+  else
+    inactive = true
+    logPending(indentation, describeNode)
+  indentation.push('  ')
+  if describeNode.focusLevel is focusLevel
+    describeNode.its.map((it) -> it.focusLevel = focusLevel)
+    describeNode.describes.map((describe) -> describe.focusLevel = focusLevel)
+
+  recurse(evaluateIt, describeNode.its, 0, ->
+    recurse(evaluateDescribe, describeNode.describes, 0, ->
+      indentation.pop()
+      inactive = previousInactiveStatus
+      next()
+    )
+  )
+
+evaluateIt = (itNode, next) ->
+  itNode.active = false unless itNode.focusLevel is focusLevel
+
+  proceed = (error, success) ->
+    if (error) # error passed from spec
+      logError(indentation, itNode, error)
+    else
+      logSuccess(indentation, itNode)
+    tryAfterEach(indentation, itNode)
+    next()
+
+  try
+    if itNode.active and not inactive
+      evaluateBeforeEaches(itNode.parent)
+      itNode.callback(proceed)
+      proceed() unless itNode.callback.length > 0
+    else
+      logPending(indentation, itNode)
+      next()
+  catch error # errors thrown by it callbacks
+    logFailure(indentation, itNode, error)
+    tryAfterEach(indentation, itNode)
+    next()
+
+
+evaluate = ->
+  evaluating = true
+
+  recurse(evaluateDescribe, root.describes, 0, ->
+    # logErrors()
+  )
+
 
 module.exports.evaluate = evaluate
 

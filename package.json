@@ -4,7 +4,9 @@
   "description": "A homemade testing framework",
   "main": "lib/check.coffee",
   "scripts": {
-    "test": "./bin/check ./spec/check-check.coffee"
+    "test": "./bin/check ./spec/check-check.coffee",
+    "test-async": "./bin/check ./spec/async-spec.coffee",
+    "test-focus": "./bin/check ./spec/focus-spec.coffee"
   },
   "keywords": [],
   "author": "Katrin Uychaco",

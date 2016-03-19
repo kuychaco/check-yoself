@@ -2,13 +2,32 @@ assert = require "assert"
 
 describe "check-yoself", ->
 
-  describe "tests", ->
+  describe "possible tests outcomes", ->
     it "works", ->
       assert.equal true, true
     it "fails appropriately", ->
       assert.equal true, false
     xit "doesn't run this", ->
       throw new Error("You should't see this")
+
+  xdescribe "pending tests", ->
+    beforeEach ->
+      throw new Error("You should't see this")
+    afterEach ->
+      throw new Error("You should't see this")
+    describe "even more nested", ->
+      beforeEach ->
+        throw new Error("You should't see this")
+      afterEach ->
+        throw new Error("You should't see this")
+      describe "even MORE nested", ->
+        beforeEach ->
+          throw new Error("You should't see this")
+        afterEach ->
+          throw new Error("You should't see this")
+
+        it "should be yellow", ->
+          throw new Error("You should't see this")
 
   describe "multiple beforeEaches and afterEaches", ->
     ops = []
@@ -70,30 +89,29 @@ describe "check-yoself", ->
       throw new Error('This should fail')
 
     it "should fail", ->
-        throw new Error("You should't see this")
     describe "propagated failures", ->
       it "should fail", ->
-        throw new Error("You should't see this")
-
-  xdescribe "pending tests", ->
-    beforeEach ->
-      throw new Error("You should't see this")
-    afterEach ->
-      throw new Error("You should't see this")
-    xdescribe "even more nested", ->
-      beforeEach ->
-        throw new Error("You should't see this")
-      afterEach ->
-        throw new Error("You should't see this")
-      describe "even MORE nested", ->
-        beforeEach ->
-          throw new Error("You should't see this")
-        afterEach ->
-          throw new Error("You should't see this")
-
-        it "should be yellow", ->
-          throw new Error("You should't see this")
 
 describe "when describe is inside of an it block", ->
   it "throws an error", ->
     describe "this shouldn't work", ->
+      throw new Error("You shouldn't see this")
+
+count = 0
+describe "async", ->
+  it "waits for done callback to get invoked", (done) ->
+    setTimeout(() ->
+      count++
+      done()
+    , 2000)
+
+  it "runs after waiting", () ->
+    assert.equal count, 1
+
+  it "works", () ->
+    count++
+    assert.equal count, 2
+
+describe "more", ->
+  it "works", ->
+    assert.equal ++count, 3

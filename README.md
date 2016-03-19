@@ -6,9 +6,9 @@ Features:
 - beforeEach/afterEach hooks
 - if exception is thrown in beforeEach or afterEach make spec fail
 - pending describes and its (xdescribe and xit)
+- focused tests f{1,3}(describe | it)
 
 Todo:
 - [ ] handle async
 - [ ] reporters
-- [ ] focused tests (fdescribe and fit)
 - [ ] tagging specs (for filtering)
