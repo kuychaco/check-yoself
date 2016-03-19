@@ -93,3 +93,7 @@ describe "check-yoself", ->
 
         it "should be yellow", ->
           throw new Error("You should't see this")
+
+describe "when describe is inside of an it block", ->
+  it "throws an error", ->
+    describe "this shouldn't work", ->
