@@ -97,20 +97,42 @@ describe "when describe is inside of an it block", ->
     describe "this shouldn't work", ->
       throw new Error("You shouldn't see this")
 
+
 count = 0
 describe "async", ->
   it "waits for done callback to get invoked", (done) ->
-    setTimeout(() ->
+    setTimeout(->
       count++
       done()
     , 2000)
 
-  it "runs after waiting", () ->
+  it "runs after waiting", ->
     assert.equal count, 1
 
-  it "works", () ->
+  it "works", ->
     count++
     assert.equal count, 2
+
+  eachCount = 0
+  describe "async beforeEach and afterEach", ->
+    beforeEach (done) ->
+      setTimeout(->
+        eachCount++
+        done()
+      , 1000)
+
+    afterEach (done) ->
+      setTimeout(->
+        eachCount++
+        done()
+      , 1000)
+
+    it "runs after waiting", ->
+      assert.equal eachCount, 1
+
+    describe "async afterEach", ->
+      it "runs after waiting", ->
+        assert.equal eachCount, 2
 
 describe "more", ->
   it "works", ->

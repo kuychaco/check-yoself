@@ -4,7 +4,6 @@ focusLevel = 0
 evaluating = false
 indentation = []
 inactive = null
-
 failures = []
 
 root =
@@ -90,20 +89,6 @@ logFailure = (indentation, itNode, error) ->
   console.log indentation.join('') + itNode.description.red
   console.log indentation.join('') + error.message.bold.gray
 
-evaluateBeforeEaches = (describe) ->
-  evaluateBeforeEaches(describe.parent) if describe.parent
-  describe.beforeEaches.forEach((beforeEach) -> beforeEach())
-
-evaluateAfterEaches = (describe) ->
-  evaluateAfterEaches(describe.parent) if describe.parent
-  describe.afterEaches.forEach((afterEach) -> afterEach())
-
-tryAfterEach = (indentation, itNode) ->
-  try
-    evaluateAfterEaches(itNode.parent)
-  catch error
-    logFailure(indentation, itNode, error)
-
 logErrors = ->
   console.log()
   failures.forEach((failure) ->
@@ -113,6 +98,7 @@ logErrors = ->
     console.log failure.error.message
     console.log stack
   )
+
 
 recurse = (fn, array, index, callback) ->
   value = array[index]
@@ -144,17 +130,17 @@ evaluateDescribe = (describeNode, next) ->
 evaluateIt = (itNode, next) ->
   itNode.active = false unless itNode.focusLevel is focusLevel
 
-  proceed = (error, success) ->
+  proceed = (error) ->
     if (error) # error passed from spec
       logError(indentation, itNode, error)
     else
       logSuccess(indentation, itNode)
-    tryAfterEach(indentation, itNode)
+    tryAfterEaches(indentation, itNode)
     next()
 
   try
     if itNode.active and not inactive
-      evaluateBeforeEaches(itNode.parent)
+      evaluateEaches(itNode.parent, itNode, 'beforeEaches')
       itNode.callback(proceed)
       proceed() unless itNode.callback.length > 0
     else
@@ -162,8 +148,24 @@ evaluateIt = (itNode, next) ->
       next()
   catch error # errors thrown by it callbacks
     logFailure(indentation, itNode, error)
-    tryAfterEach(indentation, itNode)
+    tryAfterEaches(indentation, itNode)
     next()
+
+evaluateEaches = (describe, itNode, type) ->
+  evaluateEaches(describe.parent, itNode, type) if describe.parent
+  recurse((each, next) ->
+    proceed = (error) ->
+      logFailure(indentation, itNode, error) if error # error passed from spec
+      next()
+    each(proceed)
+    next() unless each.length > 0
+  , describe[type], 0, ->)
+
+tryAfterEaches = (indentation, itNode) ->
+  try
+    evaluateEaches(itNode.parent, itNode, 'afterEaches')
+  catch error
+    logFailure(indentation, itNode, error)
 
 
 evaluate = ->
